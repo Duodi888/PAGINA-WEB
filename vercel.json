@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install --no-save next@14.2.3 @supabase/supabase-js@2 eslint-config-next@14.2.3 @types/node@20 && npx next build",
-  "outputDirectory": ".next",
-  "framework": "nextjs"
+  "installCommand": "npm install && npm install --no-save next@14.2.3 @supabase/supabase-js@2 eslint-config-next@14.2.3 @types/node@20",
+  "buildCommand": "npx next build",
+  "outputDirectory": ".next"
 }
