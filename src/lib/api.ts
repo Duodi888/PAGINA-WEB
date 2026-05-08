@@ -11,7 +11,7 @@ import type {
 function mapProfile(r: any): User {
   return {
     id: r.id,
-    name: r.full_name,
+    name: r.name,
     email: r.email,
     role: r.role,
     avatar: r.avatar_url ?? undefined,
@@ -31,7 +31,12 @@ function mapClient(r: any): Client {
     contactEmail: r.contact_email,
     contactPhone: r.contact_phone,
     website: r.website ?? undefined,
-    socialMedia: r.social_media ?? {},
+    socialMedia: {
+      instagram: r.social_instagram ?? undefined,
+      facebook: r.social_facebook ?? undefined,
+      tiktok: r.social_tiktok ?? undefined,
+      linkedin: r.social_linkedin ?? undefined,
+    },
     brandColors: r.brand_colors ?? [],
     brandFonts: r.brand_fonts ?? [],
     objectives: r.objectives ?? [],
@@ -48,7 +53,7 @@ function mapBuyerPersona(r: any): BuyerPersona {
   return {
     id: r.id,
     name: r.name,
-    age: r.age,
+    age: r.age_range ?? r.age ?? '',
     job: r.job,
     painPoints: r.pain_points ?? [],
     goals: r.goals ?? [],
@@ -89,8 +94,8 @@ function mapTask(r: any): Task {
     dueDate: r.due_date,
     createdAt: r.created_at,
     tags: r.tags ?? [],
-    attachments: r.attachments ?? 0,
-    comments: r.comment_count ?? 0,
+    attachments: r.attachments_count ?? 0,
+    comments: r.comments_count ?? 0,
     subtasks: (r.subtasks ?? []).map((s: any) => ({ id: s.id, title: s.title, done: s.done })),
   }
 }
@@ -101,7 +106,7 @@ function mapComment(r: any): Comment {
     id: r.id,
     userId: r.user_id,
     text: r.text,
-    timestamp: r.timestamp ?? undefined,
+    timestamp: r.timestamp_seconds ?? undefined,
     createdAt: r.created_at,
   }
 }
@@ -115,15 +120,15 @@ function mapContent(r: any): ContentItem {
     projectId: r.project_id,
     clientId: r.client_id,
     status: r.status,
-    thumbnail: r.thumbnail ?? '',
-    url: r.url ?? undefined,
+    thumbnail: r.thumbnail_url ?? '',
+    url: r.file_url ?? undefined,
     duration: r.duration ?? undefined,
     description: r.description ?? '',
-    comments: (r.comments ?? []).map(mapComment),
+    comments: (r.content_comments ?? []).map(mapComment),
     version: r.version ?? 1,
     uploadedAt: r.uploaded_at,
     publishedAt: r.published_at ?? undefined,
-    platform: r.platform ?? [],
+    platform: r.platforms ?? [],
     tags: r.tags ?? [],
   }
 }
@@ -135,7 +140,7 @@ function mapCalendarPost(r: any): CalendarPost {
     title: r.title,
     clientId: r.client_id,
     projectId: r.project_id,
-    platform: r.platform ?? [],
+    platform: r.platforms ?? [],
     category: r.category,
     scheduledDate: r.scheduled_date,
     scheduledTime: r.scheduled_time,
@@ -153,9 +158,9 @@ function mapResource(r: any): Resource {
     name: r.name,
     type: r.type,
     clientId: r.client_id ?? undefined,
-    size: r.size,
-    url: r.url,
-    thumbnail: r.thumbnail ?? undefined,
+    size: r.size_label ?? '',
+    url: r.file_url ?? '',
+    thumbnail: r.thumbnail_url ?? undefined,
     uploadedAt: r.uploaded_at,
     uploadedBy: r.uploaded_by,
     tags: r.tags ?? [],
@@ -271,7 +276,7 @@ export async function updateTask(id: string, updates: Partial<Task>): Promise<vo
 export async function getContentItems(): Promise<ContentItem[]> {
   const { data, error } = await supabase
     .from('content_items')
-    .select('*, comments(*)')
+    .select('*, content_comments(*)')
   if (error || !data) return []
   return data.map(mapContent)
 }
@@ -298,7 +303,7 @@ export async function createCalendarPost(
       title: post.title,
       client_id: post.clientId,
       project_id: post.projectId,
-      platform: post.platform,
+      platforms: post.platform,
       category: post.category,
       scheduled_date: post.scheduledDate,
       scheduled_time: post.scheduledTime,
@@ -323,7 +328,7 @@ export async function getClientMetrics(): Promise<ClientMetrics[]> {
   const { data, error } = await supabase
     .from('client_metrics')
     .select('*')
-    .order('recorded_at', { ascending: false })
+    .order('sort_order', { ascending: true })
   if (error || !data) return []
 
   const map = new Map<string, ClientMetrics>()
@@ -335,9 +340,9 @@ export async function getClientMetrics(): Promise<ClientMetrics[]> {
       map.set(cid, {
         clientId: cid,
         followers: {
-          instagram: r.instagram_followers ?? 0,
-          facebook: r.facebook_followers ?? 0,
-          tiktok: r.tiktok_followers ?? 0,
+          instagram: r.followers_instagram ?? 0,
+          facebook: r.followers_facebook ?? 0,
+          tiktok: r.followers_tiktok ?? 0,
         },
         engagement: r.engagement_rate ?? 0,
         reach: r.reach ?? 0,
@@ -348,8 +353,8 @@ export async function getClientMetrics(): Promise<ClientMetrics[]> {
       monthlyMap.set(cid, [])
     }
     monthlyMap.get(cid)!.push({
-      month: r.month_label ?? r.recorded_at?.substring(0, 7),
-      followers: (r.instagram_followers ?? 0) + (r.facebook_followers ?? 0) + (r.tiktok_followers ?? 0),
+      month: r.month_label ?? r.created_at?.substring(0, 7),
+      followers: (r.followers_instagram ?? 0) + (r.followers_facebook ?? 0) + (r.followers_tiktok ?? 0),
       engagement: r.engagement_rate ?? 0,
       reach: r.reach ?? 0,
       posts: r.posts_count ?? 0,
@@ -357,7 +362,7 @@ export async function getClientMetrics(): Promise<ClientMetrics[]> {
   }
 
   for (const [cid, metrics] of map.entries()) {
-    metrics.monthlyData = (monthlyMap.get(cid) ?? []).reverse()
+    metrics.monthlyData = monthlyMap.get(cid) ?? []
   }
 
   return Array.from(map.values())

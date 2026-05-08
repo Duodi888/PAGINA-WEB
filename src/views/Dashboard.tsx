@@ -43,7 +43,7 @@ export default function Dashboard() {
   const urgentTasks = tasks.filter((t) => t.priority === 'urgent' && t.status !== 'done').slice(0, 3)
   const greetHour   = new Date().getHours()
   const greet       = greetHour < 12 ? 'Buenos días' : greetHour < 18 ? 'Buenas tardes' : 'Buenas noches'
-  const firstName   = user?.name.split(' ')[0]
+  const firstName   = user?.name?.split(' ')?.[0]
 
   return (
     <div className="space-y-6">

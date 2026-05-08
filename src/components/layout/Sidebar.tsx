@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FolderKanban, Video, CheckSquare,
   CalendarDays, Library, BarChart3, Users, MessageSquare,
@@ -24,7 +24,13 @@ export default function Sidebar() {
   const { user, logout } = useAuthStore()
   const { sidebarCollapsed, setSidebarCollapsed, notifications } = useAppStore()
   const location    = useLocation()
+  const navigate    = useNavigate()
   const unreadCount = notifications.filter((n) => !n.read).length
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <aside
@@ -122,7 +128,7 @@ export default function Sidebar() {
               </div>
             )}
             {!sidebarCollapsed && (
-              <button onClick={logout} className="text-brand-muted hover:text-red-400 transition-colors" title="Cerrar sesión">
+              <button onClick={handleLogout} className="text-brand-muted hover:text-red-400 transition-colors" title="Cerrar sesión">
                 <LogOut size={15} />
               </button>
             )}

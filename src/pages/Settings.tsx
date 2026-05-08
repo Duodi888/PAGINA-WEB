@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { User, Bell, Shield, Palette, Moon, Sun, LogOut } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/appStore'
@@ -7,11 +8,17 @@ import toast from 'react-hot-toast'
 export default function Settings() {
   const { user, logout, isDarkMode, toggleDarkMode } = useAuthStore()
   const { users } = useAppStore()
+  const navigate = useNavigate()
   const [notifSettings, setNotifSettings] = useState({
     tasks: true, comments: true, mentions: true, approvals: true, deadlines: true,
   })
 
   const handleSave = () => toast.success('Configuración guardada')
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -154,7 +161,7 @@ export default function Settings() {
 
       {/* Logout */}
       <button
-        onClick={() => { logout(); toast.success('Sesión cerrada') }}
+        onClick={handleLogout}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-red-900/40 text-red-400 hover:bg-red-900/20 transition-colors text-sm font-medium"
       >
         <LogOut size={16} />
