@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm install --no-save @types/node@20 && npx next build",
+  "buildCommand": "next build",
   "outputDirectory": ".next"
 }
