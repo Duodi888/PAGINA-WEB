@@ -1,9 +1,12 @@
 node_modules
 .vite
+dist
 dist-ssr
+.next
 *.local
 .env
 .env.local
 .env.production
 .DS_Store
 Thumbs.db
+tsconfig.tsbuildinfo

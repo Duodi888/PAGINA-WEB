@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
-import { CLIENTS } from '../data/mockData'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isSameDay, isSameMonth, getDay, addMonths, subMonths
@@ -33,7 +32,7 @@ const CONTENT_MIX = [
 ]
 
 export default function CalendarPage() {
-  const { calendarPosts } = useAppStore()
+  const { calendarPosts, clients } = useAppStore()
   const [currentDate, setCurrentDate] = useState(new Date(2025, 4, 1)) // May 2025
   const [filterClient, setFilterClient] = useState('all')
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
@@ -75,7 +74,7 @@ export default function CalendarPage() {
           <div className="flex items-center gap-3">
             <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="input py-2 text-sm w-auto">
               <option value="all">Todos los clientes</option>
-              {CLIENTS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <button className="btn-primary flex items-center gap-1.5 text-sm py-2">
               <Plus size={15} /> Publicación
@@ -198,7 +197,7 @@ export default function CalendarPage() {
             ) : (
               <div className="space-y-2">
                 {selectedPosts.map((post) => {
-                  const client = CLIENTS.find((c) => c.id === post.clientId)
+                  const client = clients.find((c) => c.id === post.clientId)
                   const catStyle = CATEGORY_STYLES[post.category]
                   return (
                     <div key={post.id} className={clsx('p-2.5 rounded-lg border text-xs', catStyle.color)}>

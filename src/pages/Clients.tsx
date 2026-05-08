@@ -1,21 +1,20 @@
 import { useState } from 'react'
 import { Search, Plus, Instagram, Phone, Mail, Globe, Target, Users, Palette, ChevronRight } from 'lucide-react'
-import { CLIENTS, CLIENT_METRICS } from '../data/mockData'
 import { useAppStore } from '../store/appStore'
 import clsx from 'clsx'
 
 export default function Clients() {
-  const { projects } = useAppStore()
+  const { projects, clients, clientMetrics } = useAppStore()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
 
-  const filtered = CLIENTS.filter((c) =>
+  const filtered = clients.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.industry.toLowerCase().includes(search.toLowerCase())
   )
 
-  const client = selected ? CLIENTS.find((c) => c.id === selected) : null
-  const clientMetrics = client ? CLIENT_METRICS.find((m) => m.clientId === client.id) : null
+  const client = selected ? clients.find((c) => c.id === selected) : null
+  const selectedClientMetrics = client ? clientMetrics.find((m) => m.clientId === client.id) : null
   const clientProjects = client ? projects.filter((p) => p.clientId === client.id) : []
 
   return (
@@ -34,7 +33,7 @@ export default function Clients() {
 
         <div className="grid grid-cols-1 gap-3">
           {filtered.map((c) => {
-            const metrics = CLIENT_METRICS.find((m) => m.clientId === c.id)
+            const metrics = clientMetrics.find((m) => m.clientId === c.id)
             const clientProjs = projects.filter((p) => p.clientId === c.id && p.status === 'active')
             const isSelected = selected === c.id
             const totalFollowers = metrics ? metrics.followers.instagram + metrics.followers.facebook + metrics.followers.tiktok : 0
@@ -235,25 +234,25 @@ export default function Clients() {
           )}
 
           {/* Metrics summary */}
-          {clientMetrics && (
+          {selectedClientMetrics && (
             <div className="card">
               <h3 className="font-semibold text-sm text-white mb-3">Métricas Actuales</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-brand-surface rounded-lg p-3">
                   <p className="text-[10px] text-gray-400">Engagement</p>
-                  <p className="text-lg font-black text-white">{clientMetrics.engagement}%</p>
+                  <p className="text-lg font-black text-white">{selectedClientMetrics.engagement}%</p>
                 </div>
                 <div className="bg-brand-surface rounded-lg p-3">
                   <p className="text-[10px] text-gray-400">Alcance</p>
-                  <p className="text-lg font-black text-white">{clientMetrics.reach.toLocaleString()}</p>
+                  <p className="text-lg font-black text-white">{selectedClientMetrics.reach.toLocaleString()}</p>
                 </div>
                 <div className="bg-brand-surface rounded-lg p-3">
                   <p className="text-[10px] text-gray-400">Impresiones</p>
-                  <p className="text-lg font-black text-white">{clientMetrics.impressions.toLocaleString()}</p>
+                  <p className="text-lg font-black text-white">{selectedClientMetrics.impressions.toLocaleString()}</p>
                 </div>
                 <div className="bg-brand-surface rounded-lg p-3">
                   <p className="text-[10px] text-gray-400">Conversiones</p>
-                  <p className="text-lg font-black text-white">{clientMetrics.conversions}</p>
+                  <p className="text-lg font-black text-white">{selectedClientMetrics.conversions}</p>
                 </div>
               </div>
             </div>

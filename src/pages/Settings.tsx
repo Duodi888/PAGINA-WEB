@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { User, Bell, Shield, Palette, Moon, Sun, LogOut } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
-import { USERS } from '../data/mockData'
+import { useAppStore } from '../store/appStore'
 import toast from 'react-hot-toast'
 
 export default function Settings() {
   const { user, logout, isDarkMode, toggleDarkMode } = useAuthStore()
+  const { users } = useAppStore()
   const [notifSettings, setNotifSettings] = useState({
     tasks: true, comments: true, mentions: true, approvals: true, deadlines: true,
   })
@@ -135,7 +136,7 @@ export default function Settings() {
             </div>
           </div>
           <div className="space-y-2">
-            {USERS.map((u) => (
+            {users.map((u) => (
               <div key={u.id} className="flex items-center gap-3 p-3 bg-brand-surface rounded-lg">
                 <img src={u.avatar} className="w-8 h-8 rounded-full" alt="" />
                 <div className="flex-1">

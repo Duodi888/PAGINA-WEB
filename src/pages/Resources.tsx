@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Search, Upload, Download, ExternalLink, Grid, List, BookOpen, FileText, Image, Film, Palette } from 'lucide-react'
-import { CLIENTS, RESOURCES } from '../data/mockData'
+import { useAppStore } from '../store/appStore'
 import type { ResourceType } from '../types'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
@@ -35,12 +35,13 @@ const TYPE_LABELS: Record<ResourceType, string> = {
 const RESOURCE_TYPES: ResourceType[] = ['brandbook', 'guide', 'template', 'logo', 'palette', 'font', 'image', 'video']
 
 export default function Resources() {
+  const { clients, resources } = useAppStore()
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<'all' | ResourceType>('all')
   const [filterClient, setFilterClient] = useState('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  const filtered = RESOURCES.filter((r) => {
+  const filtered = resources.filter((r) => {
     const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
       r.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
     const matchType = filterType === 'all' || r.type === filterType
@@ -59,7 +60,7 @@ export default function Resources() {
         <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="input py-2 text-sm w-auto">
           <option value="all">Todos</option>
           <option value="internal">Interno DUODI</option>
-          {CLIENTS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <div className="flex rounded-lg border border-brand-border overflow-hidden">
           <button onClick={() => setViewMode('grid')} className={clsx('p-2 transition-colors', viewMode === 'grid' ? 'bg-duodi-600 text-white' : 'text-gray-400 hover:bg-brand-card')}>
@@ -77,10 +78,10 @@ export default function Resources() {
       {/* Type filters */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setFilterType('all')} className={clsx('px-3 py-1.5 rounded-lg text-xs font-medium transition-colors', filterType === 'all' ? 'bg-duodi-600 text-white' : 'bg-brand-card border border-brand-border text-gray-400 hover:text-gray-200')}>
-          Todos ({RESOURCES.length})
+          Todos ({resources.length})
         </button>
         {RESOURCE_TYPES.map((type) => {
-          const count = RESOURCES.filter((r) => r.type === type).length
+          const count = resources.filter((r) => r.type === type).length
           if (count === 0) return null
           return (
             <button key={type} onClick={() => setFilterType(type)} className={clsx('px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5', filterType === type ? 'bg-duodi-600 text-white' : 'bg-brand-card border border-brand-border text-gray-400 hover:text-gray-200')}>
@@ -93,7 +94,7 @@ export default function Resources() {
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((r) => {
-            const client = CLIENTS.find((c) => c.id === r.clientId)
+            const client = clients.find((c) => c.id === r.clientId)
             return (
               <div key={r.id} className="card-hover group flex flex-col">
                 <div className="aspect-video bg-brand-surface rounded-lg mb-3 overflow-hidden flex items-center justify-center">
@@ -140,7 +141,7 @@ export default function Resources() {
             </thead>
             <tbody>
               {filtered.map((r) => {
-                const client = CLIENTS.find((c) => c.id === r.clientId)
+                const client = clients.find((c) => c.id === r.clientId)
                 return (
                   <tr key={r.id} className="border-b border-brand-border/50 hover:bg-brand-surface transition-colors">
                     <td className="px-4 py-3">

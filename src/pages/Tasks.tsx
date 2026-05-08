@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Plus, Search, Calendar, Paperclip, MessageSquare, AlertCircle } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
-import { CLIENTS, USERS } from '../data/mockData'
 import clsx from 'clsx'
 import type { Task, TaskStatus } from '../types'
 import toast from 'react-hot-toast'
@@ -36,7 +35,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 export default function Tasks() {
-  const { tasks, updateTask, projects } = useAppStore()
+  const { tasks, updateTask, projects, clients, users } = useAppStore()
   const [search, setSearch] = useState('')
   const [filterPriority, setFilterPriority] = useState('all')
   const [selected, setSelected] = useState<string | null>(null)
@@ -63,8 +62,8 @@ export default function Tasks() {
 
   const task = selected ? tasks.find((t) => t.id === selected) : null
   const taskProject = task ? projects.find((p) => p.id === task.projectId) : null
-  const taskClient = taskProject ? CLIENTS.find((c) => c.id === taskProject.clientId) : null
-  const assignee = task ? USERS.find((u) => u.id === task.assigneeId) : null
+  const taskClient = taskProject ? clients.find((c) => c.id === taskProject.clientId) : null
+  const assignee = task ? users.find((u) => u.id === task.assigneeId) : null
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -121,8 +120,8 @@ export default function Tasks() {
               <div className="flex flex-col gap-2 flex-1 overflow-y-auto">
                 {colTasks.map((task) => {
                   const proj = projects.find((p) => p.id === task.projectId)
-                  const client = CLIENTS.find((c) => c.id === proj?.clientId)
-                  const user = USERS.find((u) => u.id === task.assigneeId)
+                  const client = clients.find((c) => c.id === proj?.clientId)
+                  const user = users.find((u) => u.id === task.assigneeId)
                   const subtasksDone = task.subtasks?.filter((s) => s.done).length ?? 0
                   const subtasksTotal = task.subtasks?.length ?? 0
                   const isSelected = selected === task.id

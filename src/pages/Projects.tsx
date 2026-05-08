@@ -4,7 +4,6 @@ import {
   Users, DollarSign, TrendingUp, Clock
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
-import { CLIENTS } from '../data/mockData'
 import clsx from 'clsx'
 
 const STAGES = [
@@ -24,14 +23,14 @@ const CAT_LABELS: Record<string, string> = {
 const TEAM_NAMES: Record<string, string> = { u1: 'Diego', u2: 'Valentina', u3: 'Mateo', u4: 'Camila' }
 
 export default function Projects() {
-  const { projects, tasks } = useAppStore()
+  const { projects, tasks, clients } = useAppStore()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [view, setView] = useState<'grid' | 'timeline'>('grid')
 
   const filtered = projects.filter((p) => {
-    const client = CLIENTS.find((c) => c.id === p.clientId)
+    const client = clients.find((c) => c.id === p.clientId)
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
       client?.name.toLowerCase().includes(search.toLowerCase())
     const matchStatus = filterStatus === 'all' || p.status === filterStatus
@@ -39,7 +38,7 @@ export default function Projects() {
   })
 
   const project = selectedProject ? projects.find((p) => p.id === selectedProject) : null
-  const projectClient = project ? CLIENTS.find((c) => c.id === project.clientId) : null
+  const projectClient = project ? clients.find((c) => c.id === project.clientId) : null
   const projectTasks = project ? tasks.filter((t) => t.projectId === project.id) : []
 
   return (
@@ -88,7 +87,7 @@ export default function Projects() {
         {/* Project cards */}
         <div className="grid grid-cols-1 gap-3">
           {filtered.map((p) => {
-            const client = CLIENTS.find((c) => c.id === p.clientId)
+            const client = clients.find((c) => c.id === p.clientId)
             const stage = STAGES.find((s) => s.id === p.stage)
             const pTasks = tasks.filter((t) => t.projectId === p.id)
             const doneTasks = pTasks.filter((t) => t.status === 'done').length

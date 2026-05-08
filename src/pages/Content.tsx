@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Search, Plus, ThumbsUp, ThumbsDown, MessageSquare, Eye, Clock, Film, Image, Play } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
-import { CLIENTS, USERS } from '../data/mockData'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 
@@ -36,7 +35,7 @@ function formatDuration(seconds?: number) {
 }
 
 export default function Content() {
-  const { contentItems, approveContent, rejectContent } = useAppStore()
+  const { contentItems, approveContent, rejectContent, clients, users } = useAppStore()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterClient, setFilterClient] = useState('all')
@@ -51,7 +50,7 @@ export default function Content() {
   })
 
   const item = selected ? contentItems.find((c) => c.id === selected) : null
-  const itemClient = item ? CLIENTS.find((c) => c.id === item.clientId) : null
+  const itemClient = item ? clients.find((c) => c.id === item.clientId) : null
 
   const handleApprove = (id: string) => {
     approveContent(id)
@@ -77,7 +76,7 @@ export default function Content() {
           </div>
           <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="input py-2 text-sm w-auto">
             <option value="all">Todos los clientes</option>
-            {CLIENTS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <div className="flex rounded-lg border border-brand-border overflow-hidden">
             {['all', 'draft', 'review', 'approved', 'rejected', 'published'].map((s) => (
@@ -98,7 +97,7 @@ export default function Content() {
         {/* Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((item) => {
-            const client = CLIENTS.find((c) => c.id === item.clientId)
+            const client = clients.find((c) => c.id === item.clientId)
             const isSelected = selected === item.id
             return (
               <button
@@ -206,7 +205,7 @@ export default function Content() {
             <p className="text-xs font-semibold text-gray-300 mb-3">Comentarios ({item.comments.length})</p>
             <div className="space-y-3">
               {item.comments.map((c) => {
-                const author = USERS.find((u) => u.id === c.userId)
+                const author = users.find((u) => u.id === c.userId)
                 return (
                   <div key={c.id} className="flex gap-2">
                     <img src={author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${author?.name}`} className="w-6 h-6 rounded-full shrink-0" alt="" />

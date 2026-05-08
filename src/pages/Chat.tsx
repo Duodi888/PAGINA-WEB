@@ -2,13 +2,12 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Paperclip, Smile, Hash, Search } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import { useAuthStore } from '../store/authStore'
-import { CLIENTS, USERS } from '../data/mockData'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import clsx from 'clsx'
-import type { Message } from '../types'
+import type { Message, User } from '../types'
 
-function parseTextWithMentions(text: string, allUsers: typeof USERS) {
+function parseTextWithMentions(text: string, allUsers: User[]) {
   const parts = text.split(/(@\w+)/g)
   return parts.map((part, i) => {
     if (part.startsWith('@')) {
@@ -23,7 +22,7 @@ function parseTextWithMentions(text: string, allUsers: typeof USERS) {
 }
 
 export default function Chat() {
-  const { messages, addMessage, projects } = useAppStore()
+  const { messages, addMessage, projects, clients, users } = useAppStore()
   const { user } = useAuthStore()
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
   const [text, setText] = useState('')
@@ -34,7 +33,7 @@ export default function Chat() {
 
   const projectMessages = messages.filter((m) => m.projectId === selectedProject)
   const currentProject = projects.find((p) => p.id === selectedProject)
-  const currentClient = currentProject ? CLIENTS.find((c) => c.id === currentProject.clientId) : null
+  const currentClient = currentProject ? clients.find((c) => c.id === currentProject.clientId) : null
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -46,7 +45,7 @@ export default function Chat() {
     const mentionRegex = /@(\w+)/g
     let match: RegExpExecArray | null
     while ((match = mentionRegex.exec(text)) !== null) {
-      const found = USERS.find((u) => u.name.split(' ')[0].toLowerCase() === match![1].toLowerCase())
+      const found = users.find((u) => u.name.split(' ')[0].toLowerCase() === match![1].toLowerCase())
       if (found) mentions.push(found.id)
     }
     const newMsg: Message = {
@@ -96,11 +95,11 @@ export default function Chat() {
           <p className="text-[10px] font-semibold text-gray-500 px-3 py-2 uppercase tracking-wide">Proyectos</p>
           {activeProjects
             .filter((p) => {
-              const client = CLIENTS.find((c) => c.id === p.clientId)
+              const client = clients.find((c) => c.id === p.clientId)
               return !search || p.name.toLowerCase().includes(search.toLowerCase()) || client?.name.toLowerCase().includes(search.toLowerCase())
             })
             .map((p) => {
-              const client = CLIENTS.find((c) => c.id === p.clientId)
+              const client = clients.find((c) => c.id === p.clientId)
               const unreadMsgs = messages.filter((m) => m.projectId === p.id).length
               const isActive = selectedProject === p.id
               return (
@@ -131,7 +130,7 @@ export default function Chat() {
         <div className="border-t border-brand-border p-3">
           <p className="text-[10px] font-semibold text-gray-500 mb-2 uppercase tracking-wide">En línea</p>
           <div className="flex gap-1">
-            {USERS.filter((u) => u.role !== 'client').map((u) => (
+            {users.filter((u) => u.role !== 'client').map((u) => (
               <div key={u.id} className="relative" title={u.name}>
                 <img src={u.avatar} className="w-7 h-7 rounded-full border border-brand-border" alt="" />
                 <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-400 rounded-full border border-brand-surface" />
@@ -152,7 +151,7 @@ export default function Chat() {
           </div>
           <div className="flex items-center gap-1">
             {currentProject?.team.map((uid) => {
-              const u = USERS.find((us) => us.id === uid)
+              const u = users.find((us) => us.id === uid)
               return u ? (
                 <img key={uid} src={u.avatar} className="w-6 h-6 rounded-full border border-brand-border" title={u.name} alt="" />
               ) : null
@@ -182,7 +181,7 @@ export default function Chat() {
                 </div>
                 <div className="space-y-3">
                   {dayMsgs.map((msg) => {
-                    const sender = USERS.find((u) => u.id === msg.senderId)
+                    const sender = users.find((u) => u.id === msg.senderId)
                     const isOwnMessage = msg.senderId === user?.id
                     return (
                       <div key={msg.id} className={clsx('flex gap-3', isOwnMessage && 'flex-row-reverse')}>
@@ -204,7 +203,7 @@ export default function Chat() {
                               ? 'bg-duodi-600 text-white rounded-tr-sm'
                               : 'bg-brand-card border border-brand-border text-gray-200 rounded-tl-sm'
                           )}>
-                            {parseTextWithMentions(msg.text, USERS)}
+                            {parseTextWithMentions(msg.text, users)}
                           </div>
                         </div>
                       </div>

@@ -4,7 +4,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, PieChart, Pie, Cell, Legend
 } from 'recharts'
-import { CLIENT_METRICS, CLIENTS } from '../data/mockData'
+import { useAppStore } from '../store/appStore'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 
@@ -15,10 +15,11 @@ const PLATFORM_COLORS: Record<string, string> = {
 }
 
 export default function Reports() {
+  const { clients, clientMetrics } = useAppStore()
   const [selectedClient, setSelectedClient] = useState('c1')
 
-  const clientData = CLIENT_METRICS.find((m) => m.clientId === selectedClient)
-  const client = CLIENTS.find((c) => c.id === selectedClient)
+  const clientData = clientMetrics.find((m) => m.clientId === selectedClient)
+  const client = clients.find((c) => c.id === selectedClient)
 
   if (!clientData || !client) return null
 
@@ -79,7 +80,7 @@ export default function Reports() {
       {/* Client selector */}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          {CLIENTS.map((c) => (
+          {clients.map((c) => (
             <button
               key={c.id}
               onClick={() => setSelectedClient(c.id)}
@@ -231,8 +232,8 @@ export default function Reports() {
               </tr>
             </thead>
             <tbody>
-              {CLIENT_METRICS.map((m) => {
-                const c = CLIENTS.find((cl) => cl.id === m.clientId)
+              {clientMetrics.map((m) => {
+                const c = clients.find((cl) => cl.id === m.clientId)
                 const total = m.followers.instagram + m.followers.facebook + m.followers.tiktok
                 return (
                   <tr key={m.clientId} className="border-b border-brand-border/50 hover:bg-brand-surface transition-colors cursor-pointer" onClick={() => setSelectedClient(m.clientId)}>
