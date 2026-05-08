@@ -7,6 +7,17 @@ import {
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import clsx from 'clsx'
+import toast from 'react-hot-toast'
+import Modal from '../components/ui/Modal'
+import type { ContentCategory } from '../types'
+
+const PLATFORM_OPTIONS = ['Instagram', 'Facebook', 'TikTok', 'LinkedIn', 'YouTube']
+const CATEGORY_BG: Record<ContentCategory, string> = {
+  presentation: '#6366f1',
+  testimonials: '#10b981',
+  human: '#f97316',
+  promotion: '#ec4899',
+}
 
 const CATEGORY_STYLES: Record<string, { label: string; color: string }> = {
   presentation: { label: 'Presentación', color: 'bg-duodi-700/70 border-duodi-500/50 text-duodi-200' },
@@ -32,10 +43,82 @@ const CONTENT_MIX = [
 ]
 
 export default function CalendarPage() {
-  const { calendarPosts, clients } = useAppStore()
+  const { calendarPosts, clients, projects, addCalendarPost } = useAppStore()
   const [currentDate, setCurrentDate] = useState(new Date(2025, 4, 1)) // May 2025
   const [filterClient, setFilterClient] = useState('all')
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({
+    title: '',
+    clientId: '',
+    projectId: '',
+    category: 'presentation' as ContentCategory,
+    scheduledDate: new Date().toISOString().slice(0, 10),
+    scheduledTime: '10:00',
+    platforms: [] as string[],
+    caption: '',
+  })
+
+  const formProjects = form.clientId ? projects.filter((p) => p.clientId === form.clientId) : projects
+
+  const openNewModal = () => {
+    const seedDate = (selectedDay || currentDate).toISOString().slice(0, 10)
+    const firstClient = clients[0]
+    const firstProj = firstClient ? projects.find((p) => p.clientId === firstClient.id) : projects[0]
+    setForm({
+      title: '',
+      clientId: firstClient?.id || '',
+      projectId: firstProj?.id || '',
+      category: 'presentation',
+      scheduledDate: seedDate,
+      scheduledTime: '10:00',
+      platforms: [],
+      caption: '',
+    })
+    setShowNewModal(true)
+  }
+
+  const togglePlatform = (p: string) => {
+    setForm((f) => ({
+      ...f,
+      platforms: f.platforms.includes(p)
+        ? f.platforms.filter((x) => x !== p)
+        : [...f.platforms, p],
+    }))
+  }
+
+  const handleCreate = async () => {
+    if (!form.title.trim() || !form.clientId || !form.projectId) {
+      toast.error('Título, cliente y proyecto son obligatorios')
+      return
+    }
+    setCreating(true)
+    try {
+      const created = await addCalendarPost({
+        title: form.title.trim(),
+        clientId: form.clientId,
+        projectId: form.projectId,
+        platform: form.platforms,
+        category: form.category,
+        scheduledDate: form.scheduledDate,
+        scheduledTime: form.scheduledTime,
+        status: 'scheduled',
+        caption: form.caption.trim() || undefined,
+        color: CATEGORY_BG[form.category],
+      })
+      if (created) {
+        toast.success('Publicación programada')
+        setShowNewModal(false)
+        // Jump calendar to that month if needed
+        setCurrentDate(new Date(form.scheduledDate + 'T00:00:00'))
+      } else {
+        toast.error('No se pudo programar')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const filtered = calendarPosts.filter((p) => filterClient === 'all' || p.clientId === filterClient)
 
@@ -76,7 +159,7 @@ export default function CalendarPage() {
               <option value="all">Todos los clientes</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <button className="btn-primary flex items-center gap-1.5 text-sm py-2">
+            <button onClick={openNewModal} className="btn-primary flex items-center gap-1.5 text-sm py-2">
               <Plus size={15} /> Publicación
             </button>
           </div>
@@ -184,6 +267,117 @@ export default function CalendarPage() {
             ))}
           </div>
         </div>
+
+        <Modal open={showNewModal} title="Programar publicación" onClose={() => setShowNewModal(false)} size="lg">
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Título *</label>
+              <input
+                autoFocus
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                className="input text-sm py-2"
+                placeholder="Ej. Lanzamiento producto"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Cliente *</label>
+                <select
+                  value={form.clientId}
+                  onChange={(e) => {
+                    const newClient = e.target.value
+                    const firstProj = projects.find((p) => p.clientId === newClient)
+                    setForm((f) => ({ ...f, clientId: newClient, projectId: firstProj?.id || '' }))
+                  }}
+                  className="input text-sm py-2"
+                >
+                  <option value="">Selecciona…</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Proyecto *</label>
+                <select
+                  value={form.projectId}
+                  onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
+                  className="input text-sm py-2"
+                >
+                  <option value="">Selecciona…</option>
+                  {formProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Categoría</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ContentCategory }))}
+                  className="input text-sm py-2"
+                >
+                  <option value="presentation">Presentación</option>
+                  <option value="testimonials">Testimonios</option>
+                  <option value="human">Contenido humano</option>
+                  <option value="promotion">Promoción</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Hora</label>
+                <input
+                  type="time"
+                  value={form.scheduledTime}
+                  onChange={(e) => setForm((f) => ({ ...f, scheduledTime: e.target.value }))}
+                  className="input text-sm py-2"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Fecha</label>
+                <input
+                  type="date"
+                  value={form.scheduledDate}
+                  onChange={(e) => setForm((f) => ({ ...f, scheduledDate: e.target.value }))}
+                  className="input text-sm py-2"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Plataformas</label>
+              <div className="flex flex-wrap gap-2">
+                {PLATFORM_OPTIONS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => togglePlatform(p)}
+                    className={clsx(
+                      'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                      form.platforms.includes(p)
+                        ? 'bg-duodi-600 text-white border-transparent'
+                        : 'bg-brand-surface border-brand-border text-gray-300 hover:border-duodi-500/40'
+                    )}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Caption (opcional)</label>
+              <textarea
+                value={form.caption}
+                onChange={(e) => setForm((f) => ({ ...f, caption: e.target.value }))}
+                className="input text-sm py-2 resize-none"
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2 pt-3">
+              <button onClick={() => setShowNewModal(false)} disabled={creating} className="btn-ghost flex-1 py-2 text-sm">
+                Cancelar
+              </button>
+              <button onClick={handleCreate} disabled={creating} className="btn-primary flex-1 py-2 text-sm">
+                {creating ? 'Programando…' : 'Programar'}
+              </button>
+            </div>
+          </div>
+        </Modal>
 
         {/* Selected day detail */}
         {selectedDay && (

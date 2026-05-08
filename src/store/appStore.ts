@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import type { Project, Task, ContentItem, CalendarPost, Message, Notification, Client, User, Resource, ClientMetrics } from '../types'
 import {
-  getProjects, getTasks, createTask as apiCreateTask, updateTask as apiUpdateTask,
-  getContentItems, updateContentStatus,
+  getProjects, createProject as apiCreateProject,
+  getTasks, createTask as apiCreateTask, updateTask as apiUpdateTask,
+  getContentItems, createContentItem as apiCreateContent, updateContentStatus,
   getCalendarPosts, createCalendarPost as apiCreateCalendarPost,
   getMessages, sendMessage as apiSendMessage,
   getNotifications, markNotificationRead as apiMarkRead, markAllNotificationsRead as apiMarkAllRead,
-  getClients, getUsers, getResources, getClientMetrics,
+  getClients, createClient as apiCreateClient,
+  getUsers, getResources, createResource as apiCreateResource, getClientMetrics,
 } from '../lib/api'
 
 interface AppState {
@@ -28,14 +30,18 @@ interface AppState {
   setSidebarCollapsed: (v: boolean) => void
   initialize: (userId?: string) => Promise<void>
   refresh: (userId?: string) => Promise<void>
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'subtasks' | 'attachments' | 'comments'>) => Promise<void>
+  addProject: (project: Omit<Project, 'id' | 'team' | 'spent' | 'progress'>) => Promise<Project | null>
+  addClient: (client: Omit<Client, 'id' | 'buyerPersonas'>) => Promise<Client | null>
+  addContent: (item: Omit<ContentItem, 'id' | 'comments' | 'uploadedAt' | 'version'>) => Promise<ContentItem | null>
+  addResource: (resource: Omit<Resource, 'id' | 'uploadedAt'>) => Promise<Resource | null>
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'subtasks' | 'attachments' | 'comments'>) => Promise<Task | null>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   markNotificationRead: (id: string) => Promise<void>
   markAllNotificationsRead: (userId: string) => Promise<void>
   addMessage: (msg: Omit<Message, 'id' | 'createdAt'>) => Promise<void>
   approveContent: (id: string) => Promise<void>
   rejectContent: (id: string) => Promise<void>
-  addCalendarPost: (post: Omit<CalendarPost, 'id'>) => Promise<void>
+  addCalendarPost: (post: Omit<CalendarPost, 'id'>) => Promise<CalendarPost | null>
 }
 
 async function fetchAll(userId?: string) {
@@ -91,9 +97,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  addProject: async (projectData) => {
+    const created = await apiCreateProject(projectData)
+    if (created) set((s) => ({ projects: [...s.projects, created] }))
+    return created
+  },
+
+  addClient: async (clientData) => {
+    const created = await apiCreateClient(clientData)
+    if (created) set((s) => ({ clients: [...s.clients, created] }))
+    return created
+  },
+
+  addContent: async (itemData) => {
+    const created = await apiCreateContent(itemData)
+    if (created) set((s) => ({ contentItems: [...s.contentItems, created] }))
+    return created
+  },
+
+  addResource: async (resourceData) => {
+    const created = await apiCreateResource(resourceData)
+    if (created) set((s) => ({ resources: [...s.resources, created] }))
+    return created
+  },
+
   addTask: async (taskData) => {
     const created = await apiCreateTask(taskData)
     if (created) set((s) => ({ tasks: [...s.tasks, created] }))
+    return created
   },
 
   updateTask: async (id, updates) => {
@@ -139,5 +170,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   addCalendarPost: async (postData) => {
     const created = await apiCreateCalendarPost(postData)
     if (created) set((s) => ({ calendarPosts: [...s.calendarPosts, created] }))
+    return created
   },
 }))

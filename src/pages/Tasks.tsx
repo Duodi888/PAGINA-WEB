@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Plus, Search, Calendar, Paperclip, MessageSquare, AlertCircle } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import clsx from 'clsx'
-import type { Task, TaskStatus } from '../types'
+import type { Task, TaskStatus, TaskPriority, TaskCategory } from '../types'
 import toast from 'react-hot-toast'
+import Modal from '../components/ui/Modal'
 
 const COLUMNS: { id: TaskStatus; label: string; color: string; bg: string }[] = [
   { id: 'todo', label: 'Por Hacer', color: 'text-gray-400', bg: 'bg-gray-800/30 border-gray-700/30' },
@@ -35,12 +36,69 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 export default function Tasks() {
-  const { tasks, updateTask, projects, clients, users } = useAppStore()
+  const { tasks, addTask, updateTask, projects, clients, users } = useAppStore()
   const [search, setSearch] = useState('')
   const [filterPriority, setFilterPriority] = useState('all')
   const [selected, setSelected] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<TaskStatus | null>(null)
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const today = new Date().toISOString().slice(0, 10)
+  const inAWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    projectId: '',
+    assigneeId: '',
+    status: 'todo' as TaskStatus,
+    priority: 'medium' as TaskPriority,
+    category: 'design' as TaskCategory,
+    dueDate: inAWeek,
+    tags: '',
+  })
+
+  const collaborators = users.filter((u) => u.role !== 'client')
+
+  const openNewModal = (status: TaskStatus = 'todo') => {
+    setForm({
+      title: '', description: '',
+      projectId: projects[0]?.id || '',
+      assigneeId: collaborators[0]?.id || '',
+      status, priority: 'medium', category: 'design',
+      dueDate: inAWeek, tags: '',
+    })
+    setShowNewModal(true)
+  }
+
+  const handleCreate = async () => {
+    if (!form.title.trim() || !form.projectId || !form.assigneeId) {
+      toast.error('Título, proyecto y responsable son obligatorios')
+      return
+    }
+    setCreating(true)
+    try {
+      const created = await addTask({
+        title: form.title.trim(),
+        description: form.description.trim(),
+        projectId: form.projectId,
+        assigneeId: form.assigneeId,
+        status: form.status,
+        priority: form.priority,
+        category: form.category,
+        dueDate: form.dueDate,
+        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      })
+      if (created) {
+        toast.success('Tarea creada')
+        setShowNewModal(false)
+      } else {
+        toast.error('No se pudo crear la tarea')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const filtered = tasks.filter((t) => {
     const matchSearch = t.title.toLowerCase().includes(search.toLowerCase())
@@ -84,7 +142,7 @@ export default function Tasks() {
             </button>
           ))}
         </div>
-        <button className="btn-primary flex items-center gap-1.5 text-sm py-2">
+        <button onClick={() => openNewModal()} className="btn-primary flex items-center gap-1.5 text-sm py-2">
           <Plus size={15} /> Nueva Tarea
         </button>
       </div>
@@ -112,7 +170,7 @@ export default function Tasks() {
                     {colTasks.length}
                   </span>
                 </div>
-                <button className="text-gray-500 hover:text-gray-300">
+                <button onClick={() => openNewModal(col.id)} className="text-gray-500 hover:text-gray-300" title={`Nueva tarea en "${col.label}"`}>
                   <Plus size={14} />
                 </button>
               </div>
@@ -262,6 +320,118 @@ export default function Tasks() {
           </div>
         </div>
       )}
+
+      <Modal open={showNewModal} title="Nueva tarea" onClose={() => setShowNewModal(false)} size="lg">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Título *</label>
+            <input
+              autoFocus
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="Ej. Grabar testimonio cliente X"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Descripción</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="input text-sm py-2 resize-none"
+              rows={2}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Proyecto *</label>
+              <select
+                value={form.projectId}
+                onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
+                className="input text-sm py-2"
+              >
+                <option value="">Selecciona…</option>
+                {projects.map((p) => {
+                  const c = clients.find((cl) => cl.id === p.clientId)
+                  return <option key={p.id} value={p.id}>{p.name}{c ? ` · ${c.name}` : ''}</option>
+                })}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Responsable *</label>
+              <select
+                value={form.assigneeId}
+                onChange={(e) => setForm((f) => ({ ...f, assigneeId: e.target.value }))}
+                className="input text-sm py-2"
+              >
+                <option value="">Selecciona…</option>
+                {collaborators.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Estado</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as TaskStatus }))}
+                className="input text-sm py-2"
+              >
+                {COLUMNS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Prioridad</label>
+              <select
+                value={form.priority}
+                onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value as TaskPriority }))}
+                className="input text-sm py-2"
+              >
+                <option value="low">Baja</option>
+                <option value="medium">Media</option>
+                <option value="high">Alta</option>
+                <option value="urgent">Urgente</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Categoría</label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as TaskCategory }))}
+                className="input text-sm py-2"
+              >
+                {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Fecha límite</label>
+              <input
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+                className="input text-sm py-2"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Etiquetas (separadas por coma)</label>
+            <input
+              value={form.tags}
+              onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="urgente, video, edición"
+            />
+          </div>
+          <div className="flex gap-2 pt-3">
+            <button onClick={() => setShowNewModal(false)} disabled={creating} className="btn-ghost flex-1 py-2 text-sm">
+              Cancelar
+            </button>
+            <button onClick={handleCreate} disabled={creating} className="btn-primary flex-1 py-2 text-sm">
+              {creating ? 'Creando…' : 'Crear tarea'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

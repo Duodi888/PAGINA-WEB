@@ -5,6 +5,9 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import clsx from 'clsx'
+import toast from 'react-hot-toast'
+import Modal from '../components/ui/Modal'
+import type { ProjectStage, ProjectStatus } from '../types'
 
 const STAGES = [
   { id: 'research', label: 'Investigación', color: 'bg-yellow-500', textColor: 'text-yellow-400', border: 'border-yellow-500/30', bg: 'bg-yellow-900/20' },
@@ -22,12 +25,74 @@ const CAT_LABELS: Record<string, string> = {
 
 const TEAM_NAMES: Record<string, string> = { u1: 'Diego', u2: 'Valentina', u3: 'Mateo', u4: 'Camila' }
 
+const PROJECT_COLORS = ['#6366f1', '#ec4899', '#f97316', '#10b981', '#0ea5e9', '#a855f7']
+
 export default function Projects() {
-  const { projects, tasks, clients } = useAppStore()
+  const { projects, tasks, clients, addProject } = useAppStore()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [view, setView] = useState<'grid' | 'timeline'>('grid')
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const today = new Date().toISOString().slice(0, 10)
+  const inThreeMonths = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10)
+  const [form, setForm] = useState({
+    name: '',
+    clientId: '',
+    description: '',
+    stage: 'research' as ProjectStage,
+    status: 'active' as ProjectStatus,
+    startDate: today,
+    endDate: inThreeMonths,
+    budget: 0,
+    tags: '',
+    color: PROJECT_COLORS[0],
+  })
+
+  const resetForm = () => setForm({
+    name: '', clientId: '', description: '',
+    stage: 'research', status: 'active',
+    startDate: today, endDate: inThreeMonths,
+    budget: 0, tags: '', color: PROJECT_COLORS[0],
+  })
+
+  const openNewModal = () => {
+    resetForm()
+    setForm((f) => ({ ...f, clientId: clients[0]?.id || '' }))
+    setShowNewModal(true)
+  }
+
+  const handleCreate = async () => {
+    if (!form.name.trim() || !form.clientId) {
+      toast.error('Nombre y cliente son obligatorios')
+      return
+    }
+    setCreating(true)
+    try {
+      const created = await addProject({
+        name: form.name.trim(),
+        clientId: form.clientId,
+        description: form.description.trim(),
+        status: form.status,
+        stage: form.stage,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        budget: Number(form.budget) || 0,
+        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        color: form.color,
+      })
+      if (created) {
+        toast.success('Proyecto creado')
+        setShowNewModal(false)
+        resetForm()
+      } else {
+        toast.error('No se pudo crear el proyecto')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const filtered = projects.filter((p) => {
     const client = clients.find((c) => c.id === p.clientId)
@@ -62,7 +127,7 @@ export default function Projects() {
               </button>
             ))}
           </div>
-          <button className="btn-primary flex items-center gap-1.5 text-sm py-2">
+          <button onClick={openNewModal} className="btn-primary flex items-center gap-1.5 text-sm py-2">
             <Plus size={15} /> Nuevo
           </button>
         </div>
@@ -271,6 +336,137 @@ export default function Projects() {
           </div>
         </div>
       )}
+
+      <Modal open={showNewModal} title="Nuevo proyecto" onClose={() => setShowNewModal(false)} size="lg">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Nombre *</label>
+            <input
+              autoFocus
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="Ej. Campaña Q3"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Cliente *</label>
+            <select
+              value={form.clientId}
+              onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))}
+              className="input text-sm py-2"
+            >
+              <option value="">Selecciona…</option>
+              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Descripción</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="input text-sm py-2 resize-none"
+              rows={2}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Etapa</label>
+              <select
+                value={form.stage}
+                onChange={(e) => setForm((f) => ({ ...f, stage: e.target.value as ProjectStage }))}
+                className="input text-sm py-2"
+              >
+                <option value="research">Investigación</option>
+                <option value="strategy">Estrategia</option>
+                <option value="implementation">Implementación</option>
+                <option value="monitoring">Monitoreo</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Estado</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ProjectStatus }))}
+                className="input text-sm py-2"
+              >
+                <option value="draft">Borrador</option>
+                <option value="active">Activo</option>
+                <option value="paused">Pausado</option>
+                <option value="completed">Completado</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Inicio</label>
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                className="input text-sm py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Fin</label>
+              <input
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                className="input text-sm py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Presupuesto (COP)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.budget}
+                onChange={(e) => setForm((f) => ({ ...f, budget: Number(e.target.value) }))}
+                className="input text-sm py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Color</label>
+              <div className="flex gap-2">
+                {PROJECT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, color: c }))}
+                    className={clsx('w-7 h-7 rounded-lg border-2 transition-all', form.color === c ? 'border-white scale-110' : 'border-transparent')}
+                    style={{ backgroundColor: c }}
+                    aria-label={`Color ${c}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Etiquetas (separadas por coma)</label>
+            <input
+              value={form.tags}
+              onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="estrategia, video, urgente"
+            />
+          </div>
+          <div className="flex gap-2 pt-3">
+            <button
+              onClick={() => setShowNewModal(false)}
+              className="btn-ghost flex-1 py-2 text-sm"
+              disabled={creating}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={creating}
+              className="btn-primary flex-1 py-2 text-sm"
+            >
+              {creating ? 'Creando…' : 'Crear proyecto'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

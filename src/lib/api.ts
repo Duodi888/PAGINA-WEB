@@ -230,6 +230,106 @@ export async function getProjects(): Promise<Project[]> {
   return data.map(mapProject)
 }
 
+export async function createProject(
+  project: Omit<Project, 'id' | 'team' | 'spent' | 'progress'>
+): Promise<Project | null> {
+  const { data, error } = await supabase
+    .from('projects')
+    .insert({
+      name: project.name,
+      client_id: project.clientId,
+      description: project.description,
+      status: project.status,
+      stage: project.stage,
+      start_date: project.startDate || null,
+      end_date: project.endDate || null,
+      budget: project.budget,
+      tags: project.tags,
+      color: project.color,
+    })
+    .select('*, project_members(user_id)')
+    .single()
+  if (error || !data) return null
+  return mapProject(data)
+}
+
+export async function createClient(
+  client: Omit<Client, 'id' | 'buyerPersonas'>
+): Promise<Client | null> {
+  const { data, error } = await supabase
+    .from('clients')
+    .insert({
+      name: client.name,
+      logo_url: client.logo ?? null,
+      industry: client.industry,
+      contact_name: client.contactName,
+      contact_email: client.contactEmail,
+      contact_phone: client.contactPhone || null,
+      website: client.website ?? null,
+      social_instagram: client.socialMedia.instagram ?? null,
+      social_facebook: client.socialMedia.facebook ?? null,
+      social_tiktok: client.socialMedia.tiktok ?? null,
+      social_linkedin: client.socialMedia.linkedin ?? null,
+      brand_colors: client.brandColors,
+      brand_fonts: client.brandFonts,
+      objectives: client.objectives,
+      join_date: client.joinDate,
+      plan: client.plan,
+      monthly_budget: client.monthlyBudget,
+      status: client.status,
+    })
+    .select('*, buyer_personas(*)')
+    .single()
+  if (error || !data) return null
+  return mapClient(data)
+}
+
+export async function createContentItem(
+  item: Omit<ContentItem, 'id' | 'comments' | 'uploadedAt' | 'version'>
+): Promise<ContentItem | null> {
+  const { data, error } = await supabase
+    .from('content_items')
+    .insert({
+      title: item.title,
+      type: item.type,
+      project_id: item.projectId,
+      client_id: item.clientId,
+      status: item.status,
+      thumbnail_url: item.thumbnail || null,
+      file_url: item.url ?? null,
+      duration: item.duration ?? null,
+      description: item.description,
+      platforms: item.platform,
+      tags: item.tags,
+    })
+    .select('*, content_comments(*)')
+    .single()
+  if (error || !data) return null
+  return mapContent(data)
+}
+
+export async function createResource(
+  resource: Omit<Resource, 'id' | 'uploadedAt'>
+): Promise<Resource | null> {
+  const { data, error } = await supabase
+    .from('resources')
+    .insert({
+      name: resource.name,
+      type: resource.type,
+      client_id: resource.clientId ?? null,
+      size_label: resource.size,
+      file_url: resource.url,
+      thumbnail_url: resource.thumbnail ?? null,
+      uploaded_by: resource.uploadedBy,
+      tags: resource.tags,
+      description: resource.description ?? null,
+    })
+    .select()
+    .single()
+  if (error || !data) return null
+  return mapResource(data)
+}
+
 export async function getTasks(): Promise<Task[]> {
   const { data, error } = await supabase
     .from('tasks')

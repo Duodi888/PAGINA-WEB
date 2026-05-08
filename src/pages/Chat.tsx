@@ -5,7 +5,10 @@ import { useAuthStore } from '../store/authStore'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import clsx from 'clsx'
+import toast from 'react-hot-toast'
 import type { Message, User } from '../types'
+
+const QUICK_EMOJIS = ['👍', '❤️', '🎉', '🔥', '😂', '😍', '👀', '🚀', '✨', '🙌', '💯', '😅', '🤔', '👏', '✅']
 
 function parseTextWithMentions(text: string, allUsers: User[]) {
   const parts = text.split(/(@\w+)/g)
@@ -27,7 +30,10 @@ export default function Chat() {
   const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
   const [text, setText] = useState('')
   const [search, setSearch] = useState('')
+  const [showEmoji, setShowEmoji] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const activeProjects = projects.filter((p) => p.status === 'active')
 
@@ -65,6 +71,33 @@ export default function Chat() {
       e.preventDefault()
       handleSend()
     }
+  }
+
+  const insertEmoji = (emoji: string) => {
+    const ta = textareaRef.current
+    if (!ta) {
+      setText((t) => t + emoji)
+    } else {
+      const start = ta.selectionStart ?? text.length
+      const end = ta.selectionEnd ?? text.length
+      const newText = text.slice(0, start) + emoji + text.slice(end)
+      setText(newText)
+      requestAnimationFrame(() => {
+        ta.focus()
+        ta.setSelectionRange(start + emoji.length, start + emoji.length)
+      })
+    }
+    setShowEmoji(false)
+  }
+
+  const handleAttach = () => fileInputRef.current?.click()
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setText((t) => `${t}${t ? ' ' : ''}📎 ${file.name}`)
+    toast.success(`Adjuntado: ${file.name}`)
+    e.target.value = ''
   }
 
   // Group messages by date
@@ -218,12 +251,23 @@ export default function Chat() {
 
         {/* Input */}
         <div className="border-t border-brand-border p-4 bg-brand-surface shrink-0">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelected}
+          />
           <div className="flex items-end gap-2">
-            <button className="p-2.5 text-gray-400 hover:text-gray-200 transition-colors">
+            <button
+              onClick={handleAttach}
+              className="p-2.5 text-gray-400 hover:text-gray-200 transition-colors"
+              title="Adjuntar archivo"
+            >
               <Paperclip size={18} />
             </button>
             <div className="flex-1 relative">
               <textarea
+                ref={textareaRef}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -231,9 +275,26 @@ export default function Chat() {
                 className="input resize-none py-2.5 pr-10 text-sm min-h-[44px] max-h-32 overflow-y-auto"
                 rows={1}
               />
-              <button className="absolute right-2.5 bottom-2.5 text-gray-400 hover:text-gray-200 transition-colors">
+              <button
+                onClick={() => setShowEmoji((v) => !v)}
+                className="absolute right-2.5 bottom-2.5 text-gray-400 hover:text-gray-200 transition-colors"
+                title="Emoji"
+              >
                 <Smile size={16} />
               </button>
+              {showEmoji && (
+                <div className="absolute right-0 bottom-12 z-20 bg-brand-card border border-brand-border rounded-xl p-2 shadow-lg grid grid-cols-5 gap-1 w-56 animate-slide-in">
+                  {QUICK_EMOJIS.map((e) => (
+                    <button
+                      key={e}
+                      onClick={() => insertEmoji(e)}
+                      className="text-xl p-1.5 rounded-lg hover:bg-brand-surface transition-colors"
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               onClick={handleSend}

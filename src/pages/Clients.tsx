@@ -2,11 +2,77 @@ import { useState } from 'react'
 import { Search, Plus, Instagram, Phone, Mail, Globe, Target, Users, Palette, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import clsx from 'clsx'
+import toast from 'react-hot-toast'
+import Modal from '../components/ui/Modal'
 
 export default function Clients() {
-  const { projects, clients, clientMetrics } = useAppStore()
+  const { projects, clients, clientMetrics, addClient } = useAppStore()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({
+    name: '',
+    industry: '',
+    contactName: '',
+    contactEmail: '',
+    contactPhone: '',
+    website: '',
+    instagram: '',
+    plan: 'Profesional',
+    monthlyBudget: 0,
+    brandColor1: '#6366f1',
+    brandColor2: '#ec4899',
+    objective: '',
+  })
+
+  const openNewModal = () => {
+    setForm({
+      name: '', industry: '',
+      contactName: '', contactEmail: '', contactPhone: '',
+      website: '', instagram: '',
+      plan: 'Profesional', monthlyBudget: 0,
+      brandColor1: '#6366f1', brandColor2: '#ec4899',
+      objective: '',
+    })
+    setShowNewModal(true)
+  }
+
+  const handleCreate = async () => {
+    if (!form.name.trim() || !form.industry.trim() || !form.contactEmail.trim()) {
+      toast.error('Nombre, industria y email son obligatorios')
+      return
+    }
+    setCreating(true)
+    try {
+      const created = await addClient({
+        name: form.name.trim(),
+        industry: form.industry.trim(),
+        contactName: form.contactName.trim() || form.name.trim(),
+        contactEmail: form.contactEmail.trim(),
+        contactPhone: form.contactPhone.trim(),
+        website: form.website.trim() || undefined,
+        socialMedia: {
+          instagram: form.instagram.trim() || undefined,
+        },
+        brandColors: [form.brandColor1, form.brandColor2].filter(Boolean),
+        brandFonts: [],
+        objectives: form.objective.trim() ? [form.objective.trim()] : [],
+        joinDate: new Date().toISOString().slice(0, 10),
+        plan: form.plan,
+        monthlyBudget: Number(form.monthlyBudget) || 0,
+        status: 'active',
+      })
+      if (created) {
+        toast.success('Cliente creado')
+        setShowNewModal(false)
+      } else {
+        toast.error('No se pudo crear el cliente (¿permisos?)')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const filtered = clients.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -26,7 +92,7 @@ export default function Clients() {
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} className="input pl-9 py-2 text-sm" placeholder="Buscar clientes..." />
           </div>
-          <button className="btn-primary flex items-center gap-1.5 text-sm py-2">
+          <button onClick={openNewModal} className="btn-primary flex items-center gap-1.5 text-sm py-2">
             <Plus size={15} /> Nuevo Cliente
           </button>
         </div>
@@ -259,6 +325,132 @@ export default function Clients() {
           )}
         </div>
       )}
+
+      <Modal open={showNewModal} title="Nuevo cliente" onClose={() => setShowNewModal(false)} size="lg">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Nombre *</label>
+              <input
+                autoFocus
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className="input text-sm py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Industria *</label>
+              <input
+                value={form.industry}
+                onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))}
+                className="input text-sm py-2"
+                placeholder="Restaurante, Tech, Retail…"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Persona contacto</label>
+              <input
+                value={form.contactName}
+                onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))}
+                className="input text-sm py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Email *</label>
+              <input
+                type="email"
+                value={form.contactEmail}
+                onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))}
+                className="input text-sm py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Teléfono</label>
+              <input
+                value={form.contactPhone}
+                onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))}
+                className="input text-sm py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Sitio web</label>
+              <input
+                value={form.website}
+                onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+                className="input text-sm py-2"
+                placeholder="https://…"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Instagram</label>
+              <input
+                value={form.instagram}
+                onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
+                className="input text-sm py-2"
+                placeholder="@usuario"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Plan</label>
+              <select
+                value={form.plan}
+                onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
+                className="input text-sm py-2"
+              >
+                <option value="Básico">Básico</option>
+                <option value="Profesional">Profesional</option>
+                <option value="Premium">Premium</option>
+                <option value="Enterprise">Enterprise</option>
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Presupuesto mensual (COP)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.monthlyBudget}
+                onChange={(e) => setForm((f) => ({ ...f, monthlyBudget: Number(e.target.value) }))}
+                className="input text-sm py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Color marca 1</label>
+              <input
+                type="color"
+                value={form.brandColor1}
+                onChange={(e) => setForm((f) => ({ ...f, brandColor1: e.target.value }))}
+                className="input text-sm py-1.5 h-10"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Color marca 2</label>
+              <input
+                type="color"
+                value={form.brandColor2}
+                onChange={(e) => setForm((f) => ({ ...f, brandColor2: e.target.value }))}
+                className="input text-sm py-1.5 h-10"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Objetivo principal</label>
+              <input
+                value={form.objective}
+                onChange={(e) => setForm((f) => ({ ...f, objective: e.target.value }))}
+                className="input text-sm py-2"
+                placeholder="Ej. Aumentar conversiones 20% en Q3"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-3">
+            <button onClick={() => setShowNewModal(false)} disabled={creating} className="btn-ghost flex-1 py-2 text-sm">
+              Cancelar
+            </button>
+            <button onClick={handleCreate} disabled={creating} className="btn-primary flex-1 py-2 text-sm">
+              {creating ? 'Creando…' : 'Crear cliente'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

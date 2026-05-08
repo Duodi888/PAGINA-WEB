@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Search, Upload, Download, ExternalLink, Grid, List, BookOpen, FileText, Image, Film, Palette } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
+import { useAuthStore } from '../store/authStore'
 import type { ResourceType } from '../types'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
+import Modal from '../components/ui/Modal'
 
 const TYPE_ICONS: Record<ResourceType, React.ReactNode> = {
   brandbook: <BookOpen size={20} />,
@@ -35,11 +37,90 @@ const TYPE_LABELS: Record<ResourceType, string> = {
 const RESOURCE_TYPES: ResourceType[] = ['brandbook', 'guide', 'template', 'logo', 'palette', 'font', 'image', 'video']
 
 export default function Resources() {
-  const { clients, resources } = useAppStore()
+  const { clients, resources, addResource } = useAppStore()
+  const { user } = useAuthStore()
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<'all' | ResourceType>('all')
   const [filterClient, setFilterClient] = useState('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({
+    name: '',
+    type: 'guide' as ResourceType,
+    clientId: '',
+    url: '',
+    thumbnail: '',
+    size: '',
+    description: '',
+    tags: '',
+  })
+
+  const openNewModal = () => {
+    setForm({
+      name: '', type: 'guide', clientId: '',
+      url: '', thumbnail: '', size: '',
+      description: '', tags: '',
+    })
+    setShowNewModal(true)
+  }
+
+  const handleCreate = async () => {
+    if (!form.name.trim() || !form.url.trim()) {
+      toast.error('Nombre y URL son obligatorios')
+      return
+    }
+    if (!user) {
+      toast.error('Sesión inválida')
+      return
+    }
+    setCreating(true)
+    try {
+      const created = await addResource({
+        name: form.name.trim(),
+        type: form.type,
+        clientId: form.clientId || undefined,
+        size: form.size.trim() || '—',
+        url: form.url.trim(),
+        thumbnail: form.thumbnail.trim() || undefined,
+        uploadedBy: user.id,
+        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        description: form.description.trim() || undefined,
+      })
+      if (created) {
+        toast.success('Recurso subido')
+        setShowNewModal(false)
+      } else {
+        toast.error('No se pudo subir el recurso')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleDownload = (url: string, name: string) => {
+    if (!url) {
+      toast.error('Sin URL disponible')
+      return
+    }
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    toast.success(`Descargando ${name}`)
+  }
+
+  const handleOpen = (url: string) => {
+    if (!url) {
+      toast.error('Sin URL disponible')
+      return
+    }
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
 
   const filtered = resources.filter((r) => {
     const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -70,7 +151,7 @@ export default function Resources() {
             <List size={14} />
           </button>
         </div>
-        <button className="btn-primary flex items-center gap-1.5 text-sm py-2" onClick={() => toast.success('Funcionalidad de subida próximamente')}>
+        <button className="btn-primary flex items-center gap-1.5 text-sm py-2" onClick={openNewModal}>
           <Upload size={15} /> Subir
         </button>
       </div>
@@ -118,10 +199,10 @@ export default function Resources() {
                   </div>
                 </div>
                 <div className="flex gap-1.5 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => toast.success('Descargando...')} className="flex-1 py-1.5 rounded-lg bg-brand-surface border border-brand-border text-gray-400 hover:text-white text-xs flex items-center justify-center gap-1 transition-colors">
+                  <button onClick={() => handleDownload(r.url, r.name)} className="flex-1 py-1.5 rounded-lg bg-brand-surface border border-brand-border text-gray-400 hover:text-white text-xs flex items-center justify-center gap-1 transition-colors">
                     <Download size={11} /> Descargar
                   </button>
-                  <button onClick={() => toast.success('Abriendo...')} className="p-1.5 rounded-lg bg-brand-surface border border-brand-border text-gray-400 hover:text-white transition-colors">
+                  <button onClick={() => handleOpen(r.url)} className="p-1.5 rounded-lg bg-brand-surface border border-brand-border text-gray-400 hover:text-white transition-colors">
                     <ExternalLink size={11} />
                   </button>
                 </div>
@@ -156,8 +237,8 @@ export default function Resources() {
                     <td className="px-4 py-3 text-xs text-gray-500">{r.uploadedAt}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <button onClick={() => toast.success('Descargando...')} className="p-1.5 rounded hover:bg-brand-card text-gray-400 hover:text-white transition-colors"><Download size={14} /></button>
-                        <button onClick={() => toast.success('Vista previa...')} className="p-1.5 rounded hover:bg-brand-card text-gray-400 hover:text-white transition-colors"><ExternalLink size={14} /></button>
+                        <button onClick={() => handleDownload(r.url, r.name)} className="p-1.5 rounded hover:bg-brand-card text-gray-400 hover:text-white transition-colors"><Download size={14} /></button>
+                        <button onClick={() => handleOpen(r.url)} className="p-1.5 rounded hover:bg-brand-card text-gray-400 hover:text-white transition-colors"><ExternalLink size={14} /></button>
                       </div>
                     </td>
                   </tr>
@@ -167,6 +248,97 @@ export default function Resources() {
           </table>
         </div>
       )}
+
+      <Modal open={showNewModal} title="Subir recurso" onClose={() => setShowNewModal(false)} size="lg">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Nombre *</label>
+            <input
+              autoFocus
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="Ej. Brandbook 2026"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">URL del archivo *</label>
+            <input
+              value={form.url}
+              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="https://drive.google.com/…"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Tipo</label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ResourceType }))}
+                className="input text-sm py-2"
+              >
+                {RESOURCE_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Cliente</label>
+              <select
+                value={form.clientId}
+                onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))}
+                className="input text-sm py-2"
+              >
+                <option value="">Interno DUODI</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Tamaño</label>
+              <input
+                value={form.size}
+                onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))}
+                className="input text-sm py-2"
+                placeholder="Ej. 12 MB"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Thumbnail (URL)</label>
+              <input
+                value={form.thumbnail}
+                onChange={(e) => setForm((f) => ({ ...f, thumbnail: e.target.value }))}
+                className="input text-sm py-2"
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Descripción</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="input text-sm py-2 resize-none"
+              rows={2}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Etiquetas (separadas por coma)</label>
+            <input
+              value={form.tags}
+              onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="brand, manual, v2"
+            />
+          </div>
+          <div className="flex gap-2 pt-3">
+            <button onClick={() => setShowNewModal(false)} disabled={creating} className="btn-ghost flex-1 py-2 text-sm">
+              Cancelar
+            </button>
+            <button onClick={handleCreate} disabled={creating} className="btn-primary flex-1 py-2 text-sm">
+              {creating ? 'Subiendo…' : 'Subir recurso'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

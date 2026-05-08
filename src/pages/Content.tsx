@@ -3,6 +3,10 @@ import { Search, Plus, ThumbsUp, ThumbsDown, MessageSquare, Eye, Clock, Film, Im
 import { useAppStore } from '../store/appStore'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
+import Modal from '../components/ui/Modal'
+import type { ContentType, ContentStatus } from '../types'
+
+const PLATFORM_OPTIONS = ['Instagram', 'Facebook', 'TikTok', 'LinkedIn', 'YouTube']
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'badge-gray',
@@ -35,12 +39,84 @@ function formatDuration(seconds?: number) {
 }
 
 export default function Content() {
-  const { contentItems, approveContent, rejectContent, clients, users } = useAppStore()
+  const { contentItems, approveContent, rejectContent, addContent, clients, projects, users } = useAppStore()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterClient, setFilterClient] = useState('all')
   const [selected, setSelected] = useState<string | null>(null)
   const [commentText, setCommentText] = useState('')
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({
+    title: '',
+    type: 'video' as ContentType,
+    projectId: '',
+    description: '',
+    status: 'review' as ContentStatus,
+    thumbnail: '',
+    url: '',
+    duration: '',
+    platforms: [] as string[],
+    tags: '',
+  })
+
+  const openNewModal = () => {
+    const firstProj = projects[0]
+    setForm({
+      title: '', type: 'video',
+      projectId: firstProj?.id || '',
+      description: '', status: 'review',
+      thumbnail: '', url: '', duration: '',
+      platforms: [], tags: '',
+    })
+    setShowNewModal(true)
+  }
+
+  const togglePlatform = (p: string) => {
+    setForm((f) => ({
+      ...f,
+      platforms: f.platforms.includes(p)
+        ? f.platforms.filter((x) => x !== p)
+        : [...f.platforms, p],
+    }))
+  }
+
+  const handleCreate = async () => {
+    if (!form.title.trim() || !form.projectId) {
+      toast.error('Título y proyecto son obligatorios')
+      return
+    }
+    const project = projects.find((p) => p.id === form.projectId)
+    if (!project) {
+      toast.error('Proyecto inválido')
+      return
+    }
+    setCreating(true)
+    try {
+      const created = await addContent({
+        title: form.title.trim(),
+        type: form.type,
+        projectId: form.projectId,
+        clientId: project.clientId,
+        status: form.status,
+        thumbnail: form.thumbnail.trim() || `https://picsum.photos/seed/${encodeURIComponent(form.title)}/600/400`,
+        url: form.url.trim() || undefined,
+        duration: form.duration ? Number(form.duration) : undefined,
+        description: form.description.trim(),
+        platform: form.platforms,
+        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        publishedAt: undefined,
+      })
+      if (created) {
+        toast.success('Contenido subido')
+        setShowNewModal(false)
+      } else {
+        toast.error('No se pudo subir el contenido')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const filtered = contentItems.filter((c) => {
     const matchSearch = c.title.toLowerCase().includes(search.toLowerCase())
@@ -89,7 +165,7 @@ export default function Content() {
               </button>
             ))}
           </div>
-          <button className="btn-primary flex items-center gap-1.5 text-sm py-2">
+          <button onClick={openNewModal} className="btn-primary flex items-center gap-1.5 text-sm py-2">
             <Plus size={15} /> Subir
           </button>
         </div>
@@ -246,6 +322,139 @@ export default function Content() {
           </div>
         </div>
       )}
+
+      <Modal open={showNewModal} title="Subir contenido" onClose={() => setShowNewModal(false)} size="lg">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Título *</label>
+            <input
+              autoFocus
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="Ej. Reel de lanzamiento"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Descripción</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="input text-sm py-2 resize-none"
+              rows={2}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Proyecto *</label>
+              <select
+                value={form.projectId}
+                onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
+                className="input text-sm py-2"
+              >
+                <option value="">Selecciona…</option>
+                {projects.map((p) => {
+                  const c = clients.find((cl) => cl.id === p.clientId)
+                  return <option key={p.id} value={p.id}>{p.name}{c ? ` · ${c.name}` : ''}</option>
+                })}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Tipo</label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ContentType }))}
+                className="input text-sm py-2"
+              >
+                <option value="video">Video</option>
+                <option value="reel">Reel</option>
+                <option value="image">Imagen</option>
+                <option value="story">Historia</option>
+                <option value="carousel">Carrusel</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Estado</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ContentStatus }))}
+                className="input text-sm py-2"
+              >
+                <option value="draft">Borrador</option>
+                <option value="review">En revisión</option>
+                <option value="approved">Aprobado</option>
+                <option value="published">Publicado</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Duración (segundos)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.duration}
+                onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+                className="input text-sm py-2"
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">URL del archivo (opcional)</label>
+            <input
+              value={form.url}
+              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="https://…"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Thumbnail (URL opcional)</label>
+            <input
+              value={form.thumbnail}
+              onChange={(e) => setForm((f) => ({ ...f, thumbnail: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="Si lo dejas vacío se genera uno"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Plataformas</label>
+            <div className="flex flex-wrap gap-2">
+              {PLATFORM_OPTIONS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => togglePlatform(p)}
+                  className={clsx(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                    form.platforms.includes(p)
+                      ? 'bg-duodi-600 text-white border-transparent'
+                      : 'bg-brand-surface border-brand-border text-gray-300 hover:border-duodi-500/40'
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Etiquetas (separadas por coma)</label>
+            <input
+              value={form.tags}
+              onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+              className="input text-sm py-2"
+              placeholder="lanzamiento, video, q3"
+            />
+          </div>
+          <div className="flex gap-2 pt-3">
+            <button onClick={() => setShowNewModal(false)} disabled={creating} className="btn-ghost flex-1 py-2 text-sm">
+              Cancelar
+            </button>
+            <button onClick={handleCreate} disabled={creating} className="btn-primary flex-1 py-2 text-sm">
+              {creating ? 'Subiendo…' : 'Subir contenido'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
